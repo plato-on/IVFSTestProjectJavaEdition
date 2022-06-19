@@ -83,18 +83,12 @@ public class Check {
 //            if(Objects.equals(reader.readLine(), "stop")) { //enter "stop" to stop the loop
 //                break;
 //            }
-
 //        }
 //        //---
 
 
 //            System.out.println(ivfs.openReadOnlyFile(AbsolutePaths.filePath1).getFile()); //check if FileReaderEntity gets correct value of File
 //            System.out.println(ivfs.openReadOnlyFile(AbsolutePaths.filePath1).getFileInputStream()); //check if FileReaderEntity gets correct value of File
-
-
-
-
-
 
     }
 }
