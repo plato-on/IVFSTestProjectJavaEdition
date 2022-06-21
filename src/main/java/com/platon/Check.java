@@ -1,29 +1,35 @@
 package main.java.com.platon;
 
 import lombok.extern.slf4j.Slf4j;
-
+import main.java.com.platon.constant.AbsolutePaths;
+import main.java.com.platon.entity.FileReaderEntity;
+import main.java.com.platon.entity.FileWriterEntity;
+import main.java.com.platon.exception.FileIsNullException;
+import main.java.com.platon.exception.NothingToIOException;
+import main.java.com.platon.exception.ReadBufferIsNullException;
 import main.java.com.platon.service.IVFS;
 import main.java.com.platon.service.impl.IVFSImpl;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.util.Objects;
 
 @Slf4j
 public class Check {
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws Exception, FileIsNullException, ReadBufferIsNullException, NothingToIOException {
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         IVFS ivfs = new IVFSImpl();
 
         // ------OpenReadOnlyFile-------
-//        FileReaderEntity file = ivfs.openReadOnlyFile(AbsolutePaths.filePath5);
-//        System.out.println(file);
+        FileReaderEntity file = ivfs.openReadOnlyFile(AbsolutePaths.filePath5);
+        System.out.println(file);
         //---
 
 
 //        // ------readDataFromExistingFile-------
-
+//
 //        //---to check if data is read in massive AND to check if it returns amount of read bytes---
 //        char[] buffer = new char[28];
 //        System.out.println(buffer);
@@ -61,7 +67,7 @@ public class Check {
 //        //---
 
 //        //---make more than 10 files---
-          //ivfs.openOrCreateWriteOnlyFile(AbsolutePaths.filePath11);
+//        ivfs.openOrCreateWriteOnlyFile(AbsolutePaths.filePath11);
 //        //---
 
 
@@ -71,19 +77,11 @@ public class Check {
 //        //---
 
 //        //---isFileNull---
-//        FileReaderEntity file = ivfs.openReadOnlyFile(AbsolutePaths.Null);
+//        FileReaderEntity file = ivfs.openReadOnlyFile(AbsolutePaths.fileIsNull);
 //        //---
 
 //        //---isFileNameNull---
-//        FileReaderEntity file = ivfs.openReadOnlyFile(AbsolutePaths.fileNameIsNull);
-//        //---
-
-//        //---Is(Reader/Writer)OpenedAlready--- !Don't forget to uncomment strings in method IsReadOpenedAlready!
-//        while(true) {
-//            if(Objects.equals(reader.readLine(), "stop")) { //enter "stop" to stop the loop
-//                break;
-//            }
-//        }
+//        FileReaderEntity file = ivfs.openReadOnlyFile(AbsolutePaths.fileNameIsEmpty);
 //        //---
 
 

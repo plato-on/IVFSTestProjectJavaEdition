@@ -5,13 +5,9 @@ import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import main.java.com.platon.entity.FileReaderEntity;
 import main.java.com.platon.entity.FileWriterEntity;
-import main.java.com.platon.exception.BufferTooLargeException;
-import main.java.com.platon.exception.FileNameIsNullException;
-import main.java.com.platon.exception.FileStatusException;
-import main.java.com.platon.exception.TooManyFilesException;
+import main.java.com.platon.exception.*;
 import main.java.com.platon.service.IVFS;
 import org.apache.commons.lang3.StringUtils;
-
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -27,61 +23,85 @@ import static main.java.com.platon.constant.CoreConstants.*;
 @EqualsAndHashCode
 public class IVFSImpl implements IVFS { //works with integer maxValue 2147483647 and with numbers/english-language-based files
 
+    private static volatile byte fileCount;
+    private final FileReaderEntity fileReaderEntity = new FileReaderEntity();
+    private final FileWriterEntity fileWriterEntity = new FileWriterEntity();
     private volatile File readFile;
     private volatile File writeFile;
-    private static volatile byte fileCount;
-    public volatile FileReaderEntity fileReaderEntity = new FileReaderEntity();
-    public volatile FileWriterEntity fileWriterEntity = new FileWriterEntity();
+
 
     @Override
-    synchronized public FileReaderEntity openReadOnlyFile(@NonNull String absolutePath) {
+    synchronized public FileReaderEntity openReadOnlyFile(String absolutePath) throws FileNameIsNullException, FileIsNullException {
         log.info(OPENING_FILE);
-        isFileNameEmpty(absolutePath);
-        readFile = new File(absolutePath);
-        isFileNull(readFile);
 
-        if (fileExistsAlready(readFile) & !isReaderOpenedAlready()) {
-            if (readFile.setReadOnly()) {
+        if (!isFileNameEmptyOrNull(absolutePath)) {
+            readFile = new File(absolutePath);
 
-                return generateReadEntity(readFile);
+            if (isDir(readFile)) {
+                throw new IllegalArgumentException();
             }
-            throw new FileStatusException();
+
+            if (isFileNull(readFile)) {
+                throw new FileIsNullException();
+            }
+
+            if (fileExistsAlready(readFile) & !isReaderOpenedAlready()) {
+
+                if (readFile.setReadOnly()) {
+
+                    return setupReadEntity(readFile);
+                }
+                throw new FileStatusException();
+
+            }
+            log.error(NULLPTR_READFILE);
+            return null; //it's bad practise, but that is in task of c++ realization
         }
-        System.out.println("nullptr (is opened writeOnly or does not exist)");
-        return null;
+        throw new FileNameIsNullException();
     }
 
-
     @Override
-    synchronized public FileWriterEntity openOrCreateWriteOnlyFile(@NonNull String absolutePath) throws IOException {
+    synchronized public FileWriterEntity openOrCreateWriteOnlyFile(String absolutePath) throws IOException, FileIsNullException {
         log.info(OPENING_FILE);
-        isFileNameEmpty(absolutePath);
-        File file = new File(absolutePath);
-        isFileNull(file);
 
-        if (fileExistsAlready(file)) {
+        if (!isFileNameEmptyOrNull(absolutePath)) {
+            writeFile = new File(absolutePath);
+        }
+
+        if (isDir(writeFile)) {
+            throw new IllegalArgumentException();
+        }
+
+        if (isFileNull(writeFile)) {
+            throw new FileIsNullException();
+        }
+
+        if (fileExistsAlready(writeFile)) {
 
             if (!isWriterOpenedAlready()) {
 
-                if (file.setWritable(true, false)) {
+                if (writeFile.setWritable(true, false)) {
 
-                    writeFile = file;
-                    return generateWriteEntity(writeFile);
+                    return setupWriteEntity(writeFile);
                 }
                 throw new FileStatusException();
             }
-
-            System.out.println("nullptr (is opened in readOnly)");
-            return null;
+            log.error(NULLPTR_WRITEFILE);
         }
         return createFile(absolutePath);
     }
 
-
     @Override
-    synchronized public long readDataFromExistingFile(@NonNull FileReaderEntity fileReaderEntity, @NonNull char[] buffer, @NonNull long len) throws IOException {
+    synchronized public long readDataFromExistingFile(FileReaderEntity fileReaderEntity, char[] buffer, long len) throws IOException, ReadBufferIsNullException, NothingToIOException {
         log.info(READING_FILE);
-        isFileNull(fileReaderEntity.getFile());
+
+        if(isBufferNullOrEmpty(buffer)) {
+            throw new ReadBufferIsNullException();
+        }
+
+        if (isLongEmpty(len)) {
+            throw new NothingToIOException();
+        }
 
         int convertedLen = intFromLongExtractor(len);
 
@@ -97,7 +117,7 @@ public class IVFSImpl implements IVFS { //works with integer maxValue 2147483647
                 }
                 return count;
 
-            } catch (Exception e) {
+            } catch (IOException e) {
                 e.printStackTrace();
             }
 
@@ -105,11 +125,17 @@ public class IVFSImpl implements IVFS { //works with integer maxValue 2147483647
         throw new BufferTooLargeException();
     }
 
-
     @Override
-    synchronized public long writeDataToExistingFile(@NonNull FileWriterEntity fileWriterEntity, @NonNull char[] buffer, @NonNull long len) throws IOException {
+    synchronized public long writeDataToExistingFile(FileWriterEntity fileWriterEntity, char[] buffer, long len) throws IOException, WriteBufferIsEmptyOrNullException, NothingToIOException {
         log.info(WRITING_TO_FILE);
-        isFileNull(fileWriterEntity.getFile());
+
+        if (isBufferNullOrEmpty(buffer)) {
+            throw new WriteBufferIsEmptyOrNullException();
+        }
+
+        if (isLongEmpty(len)) {
+            throw new NothingToIOException();
+        }
 
         int convertedLen = intFromLongExtractor(len);
         if (convertedLen != -1) {
@@ -126,7 +152,7 @@ public class IVFSImpl implements IVFS { //works with integer maxValue 2147483647
 
 
     @Override
-    public void closeFile(@NonNull FileReaderEntity readerEntity) {
+    synchronized public void closeFile(FileReaderEntity readerEntity) {
         log.info(CLOSE_ENTITY);
         try {
             fileReaderEntity.getFileInputStream().close();
@@ -135,28 +161,27 @@ public class IVFSImpl implements IVFS { //works with integer maxValue 2147483647
         }
     }
 
-    synchronized private FileWriterEntity createFile(@NonNull String absolutePath) throws IOException { //creates new file AND generates FileWriterEntity, returns it
+    synchronized private FileWriterEntity createFile(String absolutePath) throws IOException { //creates new file AND generates FileWriterEntity, returns it
         fileCounter(absolutePath);
         if (fileCount < 10) { //if number of files is valid
             org.apache.commons.io.FileUtils.touch(new File(absolutePath));
 
-            return generateWriteEntity(writeFile);
+            return setupWriteEntity(writeFile);
         }
-        throw new TooManyFilesException("System handles only 10 physical files.");
+        throw new TooManyFilesException();
     }
 
-
-    synchronized private void isFileNameEmpty(@NonNull String filename) {
+    synchronized private boolean isFileNameEmptyOrNull(String filename) {
+        log.info(FILENAME_IS_NULL);
         if (StringUtils.isEmpty(filename)) {
             log.error(FILENAME_IS_NULL);
+            return true;
         }
+        return false;
     }
 
 
-    synchronized private void isFileNull(@NonNull File file) {
-    }
-
-    synchronized private FileReaderEntity generateReadEntity(@NonNull File readFile) {
+    synchronized private FileReaderEntity setupReadEntity(File readFile) {
         log.info(GENERATING_READER_ENTITY);
 
         fileReaderEntity.setFile(readFile);
@@ -170,14 +195,13 @@ public class IVFSImpl implements IVFS { //works with integer maxValue 2147483647
         return fileReaderEntity;
     }
 
-    synchronized private FileWriterEntity generateWriteEntity(@NonNull File writeFile) {
+    synchronized private FileWriterEntity setupWriteEntity(File writeFile) {
         log.info(GENERATING_WRITER_ENTITY);
 
         fileWriterEntity.setFile(writeFile);
 
-        return new FileWriterEntity();
+        return fileWriterEntity;
     }
-
 
     synchronized private boolean isReaderOpenedAlready() {
         log.info(CHECK_IF_FILE_OPENED);
@@ -188,8 +212,8 @@ public class IVFSImpl implements IVFS { //works with integer maxValue 2147483647
         if (fileReaderEntity.getFile() == null)
             return false;
 
-        System.out.println(fileWriterEntity.getFile().hashCode()); //uncomment to check hashcode
-        System.out.println(writeFile.hashCode());                  //uncomment to check hashcode
+//        System.out.println(fileWriterEntity.getFile().hashCode()); //uncomment to check hashcode
+//        System.out.println(writeFile.hashCode());                  //uncomment to check hashcode
 
         if (fileReaderEntity.getFile().hashCode() == readFile.hashCode()) {
             log.error(FILE_IS_ALREADY_OPENED_IN_CURRENT_MOD);
@@ -197,7 +221,6 @@ public class IVFSImpl implements IVFS { //works with integer maxValue 2147483647
 
         return fileReaderEntity.getFile().hashCode() == writeFile.hashCode(); //if the File value of file(Reader/Writer)Entity is the same object with given one
     }
-
 
     synchronized private boolean isWriterOpenedAlready() {
         log.info(CHECK_IF_FILE_OPENED);
@@ -221,12 +244,38 @@ public class IVFSImpl implements IVFS { //works with integer maxValue 2147483647
 
     synchronized private boolean fileExistsAlready(File file) {
         log.info(CHECK_EXISTENCE);
-
         return file.exists();
     }
 
+    synchronized private boolean isDir(File file) {
+        log.info(CHECK_IF_FILE_IS_DIRECTORY);
+        return file.isDirectory();
+    }
 
-    static synchronized public void fileCounter(String absolutePath) {
+    synchronized private boolean isFileNull(File file) {
+        log.info(CHECK_IF_FILE_IS_NULL);
+        return file.length() == 0;
+    }
+
+    synchronized private boolean isLongEmpty(long theLong) {
+        log.info(CHECK_IF_LONG_IS_NULL);
+        return theLong == 0;
+    }
+
+    synchronized private boolean isBufferNullOrEmpty(char[] chars) {
+        log.info(CHECK_IF_BUFFER_IS_NULL_OR_EMPTY);
+        if (chars == null) {
+            return true;
+        }
+        return chars.length == 0;
+    }
+
+    synchronized private Integer intFromLongExtractor(Long theLong) { //returns -1 if theLong is too large (or null) to convert OR returns valid integer if long is valid
+        log.info(EXTRACTING_LONG);
+        return theLong < (Integer.MAX_VALUE - 8) ? Math.toIntExact(theLong) : -1;
+    }
+
+    public static synchronized void fileCounter(String absolutePath) {
         log.info(CHECK_AMOUNT_OF_FILES);
         try (Stream<Path> files = Files.list(Paths.get(absolutePath).getParent())) { //count amount of files into root directory
             fileCount = (byte) files.count();
@@ -234,11 +283,6 @@ public class IVFSImpl implements IVFS { //works with integer maxValue 2147483647
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    synchronized private Integer intFromLongExtractor(long theLong) { //returns -1 if theLong is too large (or null) to convert OR returns valid integer if long is valid
-        log.info(EXTRACTING_LONG);
-        return theLong < Integer.MAX_VALUE ? Math.toIntExact(theLong) : -1;
     }
 
 }

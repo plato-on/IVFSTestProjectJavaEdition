@@ -1,17 +1,16 @@
 package main.java.com.platon.entity;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
 
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
+@NonNull
 public class FileReaderEntity {
 
     private volatile File file;

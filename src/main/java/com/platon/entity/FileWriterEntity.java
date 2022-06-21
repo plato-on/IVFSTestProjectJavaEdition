@@ -1,17 +1,14 @@
 package main.java.com.platon.entity;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
-import java.io.*;
-import java.util.concurrent.Callable;
+import java.io.File;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
+@NonNull
 public class FileWriterEntity {
 
     private volatile File file;
