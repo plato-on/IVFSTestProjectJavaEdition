@@ -22,10 +22,10 @@ public class Check {
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         IVFS ivfs = new IVFSImpl();
 
-        // ------OpenReadOnlyFile-------
-        FileReaderEntity file = ivfs.openReadOnlyFile(AbsolutePaths.filePath5);
-        System.out.println(file);
-        //---
+//        // ------OpenReadOnlyFile-------
+//        FileReaderEntity file = ivfs.openReadOnlyFile(AbsolutePaths.filePath5);
+//        System.out.println(file);
+//        //---
 
 
 //        // ------readDataFromExistingFile-------

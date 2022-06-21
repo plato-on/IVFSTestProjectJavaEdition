@@ -21,7 +21,7 @@ import static main.java.com.platon.constant.CoreConstants.*;
 @Slf4j
 @NonNull
 @EqualsAndHashCode
-public class IVFSImpl implements IVFS { //works with integer maxValue 2147483647 and with numbers/english-language-based files
+public class IVFSImpl implements IVFS { //works with integer maxValue 2147483639 and with numbers/english-language-based files
 
     private static volatile byte fileCount;
     private final FileReaderEntity fileReaderEntity = new FileReaderEntity();
@@ -92,10 +92,14 @@ public class IVFSImpl implements IVFS { //works with integer maxValue 2147483647
     }
 
     @Override
-    synchronized public long readDataFromExistingFile(FileReaderEntity fileReaderEntity, char[] buffer, long len) throws IOException, ReadBufferIsNullException, NothingToIOException {
+    synchronized public long readDataFromExistingFile(FileReaderEntity fileReaderEntity, char[] buffer, long len) throws IOException, ReadBufferIsNullException, NothingToIOException, FileReaderEntityIsNullException {
         log.info(READING_FILE);
 
-        if(isBufferNullOrEmpty(buffer)) {
+        if (isReaderEntityNull(fileReaderEntity)) {
+            throw new FileReaderEntityIsNullException();
+        }
+
+        if (isBufferNullOrEmpty(buffer)) {
             throw new ReadBufferIsNullException();
         }
 
@@ -126,8 +130,12 @@ public class IVFSImpl implements IVFS { //works with integer maxValue 2147483647
     }
 
     @Override
-    synchronized public long writeDataToExistingFile(FileWriterEntity fileWriterEntity, char[] buffer, long len) throws IOException, WriteBufferIsEmptyOrNullException, NothingToIOException {
+    synchronized public long writeDataToExistingFile(FileWriterEntity fileWriterEntity, char[] buffer, long len) throws IOException, WriteBufferIsEmptyOrNullException, NothingToIOException, FileWriterEntityIsNullException {
         log.info(WRITING_TO_FILE);
+
+        if (isWriterEntityNull(fileWriterEntity)) {
+            throw new FileWriterEntityIsNullException();
+        }
 
         if (isBufferNullOrEmpty(buffer)) {
             throw new WriteBufferIsEmptyOrNullException();
@@ -150,7 +158,6 @@ public class IVFSImpl implements IVFS { //works with integer maxValue 2147483647
         throw new BufferTooLargeException();
     }
 
-
     @Override
     synchronized public void closeFile(FileReaderEntity readerEntity) {
         log.info(CLOSE_ENTITY);
@@ -161,6 +168,7 @@ public class IVFSImpl implements IVFS { //works with integer maxValue 2147483647
         }
     }
 
+
     synchronized private FileWriterEntity createFile(String absolutePath) throws IOException { //creates new file AND generates FileWriterEntity, returns it
         fileCounter(absolutePath);
         if (fileCount < 10) { //if number of files is valid
@@ -170,16 +178,6 @@ public class IVFSImpl implements IVFS { //works with integer maxValue 2147483647
         }
         throw new TooManyFilesException();
     }
-
-    synchronized private boolean isFileNameEmptyOrNull(String filename) {
-        log.info(FILENAME_IS_NULL);
-        if (StringUtils.isEmpty(filename)) {
-            log.error(FILENAME_IS_NULL);
-            return true;
-        }
-        return false;
-    }
-
 
     synchronized private FileReaderEntity setupReadEntity(File readFile) {
         log.info(GENERATING_READER_ENTITY);
@@ -241,6 +239,14 @@ public class IVFSImpl implements IVFS { //works with integer maxValue 2147483647
         return fileWriterEntity.getFile().hashCode() == readFile.hashCode(); //if the File value of file(Reader/Writer)Entity is the same object with given one
     }
 
+    synchronized private boolean isFileNameEmptyOrNull(String filename) {
+        log.info(FILENAME_IS_NULL);
+        if (StringUtils.isEmpty(filename)) {
+            log.error(FILENAME_IS_NULL);
+            return true;
+        }
+        return false;
+    }
 
     synchronized private boolean fileExistsAlready(File file) {
         log.info(CHECK_EXISTENCE);
@@ -260,6 +266,16 @@ public class IVFSImpl implements IVFS { //works with integer maxValue 2147483647
     synchronized private boolean isLongEmpty(long theLong) {
         log.info(CHECK_IF_LONG_IS_NULL);
         return theLong == 0;
+    }
+
+    synchronized private boolean isWriterEntityNull(FileWriterEntity fileWriterEntity) {
+        log.info(CHECK_IF_WRITER_ENTITY_NULL);
+        return fileWriterEntity == null;
+    }
+
+    synchronized private boolean isReaderEntityNull(FileReaderEntity fileReaderEntity) {
+        log.info(CHECK_IF_READER_ENTITY_NULL);
+        return fileReaderEntity == null;
     }
 
     synchronized private boolean isBufferNullOrEmpty(char[] chars) {

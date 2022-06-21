@@ -15,5 +15,5 @@ public final class AbsolutePaths {
 
     public static final String fileNameIsEmpty = "";
     public static final String fileIsNull = null;
-    public static final String filesDirectory = ".\\realisation\\";
+    public static final String filesDirectory = ".\\realization\\";
 }
