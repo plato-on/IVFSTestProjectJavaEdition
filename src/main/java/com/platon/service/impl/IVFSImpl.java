@@ -72,10 +72,6 @@ public class IVFSImpl implements IVFS { //works with integer maxValue 2147483639
             throw new IllegalArgumentException();
         }
 
-        if (isFileNull(writeFile)) {
-            throw new FileIsNullException();
-        }
-
         fileCounter(fileWriterEntity.getFile().getAbsolutePath());
 
         if (fileCount < 10) {
