@@ -76,19 +76,25 @@ public class IVFSImpl implements IVFS { //works with integer maxValue 2147483639
             throw new FileIsNullException();
         }
 
-        if (fileExistsAlready(writeFile)) {
+        fileCounter(fileWriterEntity.getFile().getAbsolutePath());
 
-            if (!isWriterOpenedAlready()) {
+        if (fileCount < 10) {
 
-                if (writeFile.setWritable(true, false)) {
+            if (fileExistsAlready(writeFile)) {
 
-                    return setupWriteEntity(writeFile);
+                if (!isWriterOpenedAlready()) {
+
+                    if (writeFile.setWritable(true, false)) {
+
+                        return setupWriteEntity(writeFile);
+                    }
+                    throw new FileStatusException();
                 }
-                throw new FileStatusException();
+                log.error(NULLPTR_WRITEFILE);
             }
-            log.error(NULLPTR_WRITEFILE);
+            return createFile(absolutePath);
         }
-        return createFile(absolutePath);
+        throw new TooManyFilesException();
     }
 
     @Override
